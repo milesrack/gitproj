@@ -1,0 +1,64 @@
+#!/bin/bash
+
+usage(){
+	echo -e "Usage: gitproj <name>\n"
+	echo -e "-d\tRepository description."
+	echo -e "-t\tRepository topics seperated by a space."
+	echo -e "-p\tCreate a private repository."
+	exit
+}
+
+err(){
+	echo "[$(date +%F' '%T)] $1" >&2
+	exit
+}
+
+config(){
+	config_dir="$HOME/.config/gitproj"
+	config_file="$config_dir/config"
+	mkdir -p $config_dir
+	[[ -f $config_file ]] || echo -e "PROJECT_DIR=\"\"\nAPI_TOKEN=\"\"" > $config_file
+	. $config_file
+	[[ $PROJECT_DIR ]] || err "PROJECT_DIR is empty in $config_file"
+	[[ $API_TOKEN ]] || err "API_TOKEN is empty in $config_file"
+	mkdir -p $PROJECT_DIR
+	res=$(curl -s -H "Authorization: token $API_TOKEN" https://api.github.com/user)
+	[[ $res ]] || err "Request to api.github.com failed"
+	[[ $(echo $res | jq -r .message) == "Bad credentials" ]] && err "Invalid API token"
+	username=$(echo $res | jq -r .login)
+	[[ $username ]] ||  err "Invalid response from api.github.com"
+}
+
+[ $# -eq 0 ] && usage
+
+[[ $1 =~ ^[A-Za-z0-9_\.-]+$ ]] && project_name=$1 || err "Invalid repository name"
+
+shift
+
+while getopts "d:t:p" flag
+do
+	case $flag in
+		d) description=$OPTARG;;
+		t) topics=$(echo $OPTARG | sed 's/\([A-Za-z0-9_\.-]\+\)/"\1"/g' | sed 's/\s/,/g');;
+		p) private=true;;
+	esac
+done
+
+config
+working_dir="$PROJECT_DIR/$project_name"
+[[ -d $working_dir ]] && err "$working_dir already exists"
+mkdir -p $working_dir
+cd $working_dir
+git init
+echo -e "# $project_name\n$description" > README.md
+git add .
+git commit -m "Initial commit"
+[[ $private ]] && private="true" || private="false"
+res=$(curl -s -X POST -H "Authorization: token $API_TOKEN" https://api.github.com/user/repos -d '{"name":"'"$project_name"'","description":"'"$description"'","private":"'"$private"'"}')
+[[ $res ]] || err "Request to api.github.com failed"
+repo_name=$(echo $res | jq -r .full_name)
+[[ $repo_name == "null" ]] && err "Failed to create repository"
+git remote add origin https://$API_TOKEN@github.com/$repo_name
+git push -u origin master
+[[ $topics ]] && curl -s -X PUT -H "Authorization: token $API_TOKEN" https://api.github.com/repos/$repo_name/topics -d '{"names":['"$topics"']}'
+echo "Created new GitHub repo at https://github.com/$repo_name"
