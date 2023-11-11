@@ -1,10 +1,12 @@
 #!/bin/bash
 
 usage(){
-	echo -e "Usage: gitproj <name>\n"
-	echo -e "-d\tRepository description."
-	echo -e "-t\tRepository topics seperated by a space."
-	echo -e "-p\tCreate a private repository."
+	echo -e "Usage: gitproj <name> [options]\n"
+	echo -e "Options:"
+	echo -e "  -d\tRepository description."
+	echo -e "  -t\tRepository topics seperated by a space."
+	echo -e "  -p\tCreate a private repository."
+	echo -e "  -h\tDisplay this help menu."
 	exit
 }
 
@@ -30,17 +32,19 @@ config(){
 }
 
 [ $# -eq 0 ] && usage
+[[ $1 == "-h" ]] || [[ $1 == "--help" ]] && usage
 
 [[ $1 =~ ^[A-Za-z0-9_\.-]+$ ]] && project_name=$1 || err "Invalid repository name"
 
 shift
 
-while getopts "d:t:p" flag
+while getopts "d:t:p:h" flag
 do
 	case $flag in
 		d) description=$OPTARG;;
 		t) topics=$(echo $OPTARG | sed 's/\([A-Za-z0-9_\.-]\+\)/"\1"/g' | sed 's/\s/,/g');;
 		p) private=true;;
+		h) usage;;
 	esac
 done
 

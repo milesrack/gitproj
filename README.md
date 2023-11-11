@@ -17,11 +17,13 @@ chmod +x install.sh && ./install.sh
 ## Usage
 To create a new repository, run the `gitproj` command (or `gp`) followed by the name of your project. Additionally, you can specify a description, topics, and whether the repository should be private or not. 
 ```
-Usage: gitproj <name>
+Usage: gitproj <name> [options]
 
--d	Repository description.
--t	Repository topics seperated by a space.
--p	Create a private repository.
+Options:
+  -d	Repository description.
+  -t	Repository topics seperated by a space.
+  -p	Create a private repository.
+  -h	Display this help menu.
 ```
 
 ## Configuration
